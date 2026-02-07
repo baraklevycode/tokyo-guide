@@ -64,7 +64,7 @@ export default function HomePage() {
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">
             מה מעניין אתכם?
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {CATEGORIES.map((cat) => (
               <Link
                 key={cat.id}

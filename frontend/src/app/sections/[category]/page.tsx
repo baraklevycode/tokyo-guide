@@ -87,7 +87,7 @@ export default function CategoryPage() {
 
           {/* Content */}
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
@@ -118,7 +118,7 @@ export default function CategoryPage() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {items.map((item) => (
                 <ContentCard key={item.id} item={item} />
               ))}

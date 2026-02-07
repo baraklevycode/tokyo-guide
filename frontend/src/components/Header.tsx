@@ -19,7 +19,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-8">
             <Link
               href="/sections"
               className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
@@ -80,7 +80,7 @@ export default function Header() {
         {/* Mobile Navigation */}
         {menuOpen && (
           <nav className="md:hidden py-4 border-t border-gray-100 animate-fade-in">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <Link
                 href="/sections"
                 onClick={() => setMenuOpen(false)}

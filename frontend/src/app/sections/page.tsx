@@ -56,7 +56,7 @@ export default function SectionsPage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[...Array(9)].map((_, i) => (
                 <div
                   key={i}
@@ -65,7 +65,7 @@ export default function SectionsPage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {categories.map((cat) => (
                 <SectionCard key={cat.category} category={cat} />
               ))}
