@@ -98,3 +98,62 @@ html {
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Chat markdown styles */
+.chat-markdown p {
+  margin: 0.25em 0;
+}
+
+.chat-markdown p:first-child {
+  margin-top: 0;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown strong {
+  font-weight: 700;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  margin: 0.4em 0;
+  padding-right: 1.2em;
+}
+
+.chat-markdown li {
+  margin: 0.15em 0;
+}
+
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: 0.8rem;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid #d1d5db;
+  padding: 0.3em 0.5em;
+  text-align: right;
+}
+
+.chat-markdown th {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+.chat-markdown code {
+  background-color: rgba(0, 0, 0, 0.06);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.chat-markdown hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0.5em 0;
+}

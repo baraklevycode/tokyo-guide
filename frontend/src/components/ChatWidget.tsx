@@ -201,7 +201,7 @@ export default function ChatWidget() {
           )}
 
           {/* Input area */}
-          <div className="border-t border-gray-100 p-3 shrink-0">
+          <div className="border-t border-gray-100 p-2.5 shrink-0">
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}

@@ -26,9 +26,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app/ ./app/
 COPY scripts/ ./scripts/
 
-# Pre-download the sentence-transformers model during build
-# This avoids downloading it on every cold start (Render free tier spins down)
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
+# Note: When HF_API_TOKEN is set, embeddings use Hugging Face API (no local model needed)
+# This saves memory on free tier hosting (512MB limit)
 
 # Expose port
 EXPOSE 8000

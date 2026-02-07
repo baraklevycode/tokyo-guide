@@ -1,3 +1,5 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { SourceReference } from "@/lib/api";
 
 interface ChatMessageProps {
@@ -18,7 +20,7 @@ export default function ChatMessage({
       className={`flex ${isUser ? "justify-start" : "justify-end"} animate-slide-up`}
     >
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[90%] rounded-2xl px-4 py-3 ${
           isUser
             ? "bg-pink-600 text-white rounded-br-sm"
             : "bg-gray-100 text-gray-800 rounded-bl-sm"
@@ -32,8 +34,14 @@ export default function ChatMessage({
         </div>
 
         {/* Message content */}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap">
-          {content}
+        <div className="chat-markdown text-sm leading-relaxed">
+          {isUser ? (
+            <span className="whitespace-pre-wrap">{content}</span>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
+          )}
         </div>
 
         {/* Source references (only for assistant messages) */}

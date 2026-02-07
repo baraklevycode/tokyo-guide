@@ -1,42 +1,65 @@
-"""Embedding service using sentence-transformers for multilingual text."""
+"""Embedding service using Hugging Face Inference API or local sentence-transformers."""
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
-from sentence_transformers import SentenceTransformer
+import httpx
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Singleton model instance (loaded once at startup)
-_model: Optional[SentenceTransformer] = None
+# Hugging Face Inference API settings
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
+
+# Local model instance (only used if HF_API_TOKEN not set)
+_model = None
+_use_api = bool(HF_API_TOKEN)
 
 
-def load_model() -> SentenceTransformer:
+def load_model():
     """
-    Load the sentence-transformers model.
-    Called once during application startup via the lifespan handler.
-    Model: paraphrase-multilingual-MiniLM-L12-v2
-      - Supports 50+ languages including Hebrew
-      - Output dimension: 384
-      - Size: ~120MB
+    Initialize the embedding service.
+    Uses Hugging Face API if HF_API_TOKEN is set (for low-memory environments).
+    Falls back to local model for development.
     """
-    global _model
-    if _model is None:
-        logger.info("Loading embedding model: %s ...", settings.embedding_model_name)
-        _model = SentenceTransformer(settings.embedding_model_name)
-        logger.info("Embedding model loaded successfully (dim=%d)", _model.get_sentence_embedding_dimension())
+    global _model, _use_api
+    
+    if HF_API_TOKEN:
+        logger.info("Using Hugging Face Inference API for embeddings (low memory mode)")
+        _use_api = True
+        return None
+    
+    # Local mode - load sentence-transformers
+    logger.info("Loading local embedding model: %s ...", settings.embedding_model_name)
+    from sentence_transformers import SentenceTransformer
+    _model = SentenceTransformer(settings.embedding_model_name)
+    logger.info("Embedding model loaded successfully (dim=%d)", _model.get_sentence_embedding_dimension())
+    _use_api = False
     return _model
 
 
-def get_model() -> SentenceTransformer:
-    """Get the loaded model instance. Raises if not yet loaded."""
-    if _model is None:
-        raise RuntimeError("Embedding model not loaded. Call load_model() first.")
+def get_model():
+    """Get the loaded model instance. Returns None if using API mode."""
     return _model
+
+
+def _call_hf_api(texts: list[str]) -> list[list[float]]:
+    """Call Hugging Face Inference API for embeddings."""
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    
+    with httpx.Client(timeout=60) as client:
+        response = client.post(
+            HF_API_URL,
+            headers=headers,
+            json={"inputs": texts, "options": {"wait_for_model": True}}
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 def encode_text(text: str) -> list[float]:
@@ -49,8 +72,13 @@ def encode_text(text: str) -> list[float]:
     Returns:
         List of 384 floats representing the text embedding.
     """
-    model = get_model()
-    embedding = model.encode(text, normalize_embeddings=True)
+    if _use_api:
+        result = _call_hf_api([text])
+        return result[0]
+    
+    if _model is None:
+        raise RuntimeError("Embedding model not loaded. Call load_model() first.")
+    embedding = _model.encode(text, normalize_embeddings=True)
     return embedding.tolist()
 
 
@@ -65,6 +93,17 @@ def encode_batch(texts: list[str], batch_size: int = 32) -> list[list[float]]:
     Returns:
         List of embedding vectors.
     """
-    model = get_model()
-    embeddings = model.encode(texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True)
+    if _use_api:
+        # Process in batches to avoid API limits
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            embeddings = _call_hf_api(batch)
+            all_embeddings.extend(embeddings)
+            logger.info("Processed batch %d-%d via HF API", i, i + len(batch))
+        return all_embeddings
+    
+    if _model is None:
+        raise RuntimeError("Embedding model not loaded. Call load_model() first.")
+    embeddings = _model.encode(texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True)
     return [emb.tolist() for emb in embeddings]
