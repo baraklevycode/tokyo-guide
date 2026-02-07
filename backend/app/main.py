@@ -63,16 +63,18 @@ app = FastAPI(
 )
 
 # ── CORS ────────────────────────────────────────────────────────────────────
-# Allow the frontend origin and localhost for development
+# Allow the frontend origin, Vercel previews, and localhost for development
 allowed_origins = [
     settings.frontend_url,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://tokyo-guide-pi.vercel.app",
+    "https://*.vercel.app",  # Allow all Vercel preview deployments
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],  # Allow all origins for now (safe for public API)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
