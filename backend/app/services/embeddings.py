@@ -6,18 +6,17 @@ import logging
 import os
 from typing import Optional
 
-import httpx
-
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Hugging Face Inference API settings (updated URL - router.huggingface.co)
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/pipeline/feature-extraction"
+# Hugging Face API settings
 HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
+HF_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 # Local model instance (only used if HF_API_TOKEN not set)
 _model = None
+_hf_client = None
 _use_api = bool(HF_API_TOKEN)
 
 
@@ -27,10 +26,12 @@ def load_model():
     Uses Hugging Face API if HF_API_TOKEN is set (for low-memory environments).
     Falls back to local model for development.
     """
-    global _model, _use_api
+    global _model, _hf_client, _use_api
     
     if HF_API_TOKEN:
         logger.info("Using Hugging Face Inference API for embeddings (low memory mode)")
+        from huggingface_hub import InferenceClient
+        _hf_client = InferenceClient(provider="hf-inference", api_key=HF_API_TOKEN)
         _use_api = True
         return None
     
@@ -50,45 +51,32 @@ def get_model():
 
 def _call_hf_api(texts: list[str], retries: int = 3) -> list[list[float]]:
     """Call Hugging Face Inference API for embeddings with retry logic."""
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    import time
     
     for attempt in range(retries):
         try:
-            with httpx.Client(timeout=120) as client:
-                response = client.post(
-                    HF_API_URL,
-                    headers=headers,
-                    json={"inputs": texts, "options": {"wait_for_model": True}}
-                )
-                response.raise_for_status()
-                result = response.json()
+            # Use the HuggingFace Hub client
+            if len(texts) == 1:
+                result = _hf_client.feature_extraction(texts[0], model=HF_MODEL)
+                return [list(result)]
+            else:
+                # Process multiple texts
+                results = []
+                for text in texts:
+                    embedding = _hf_client.feature_extraction(text, model=HF_MODEL)
+                    results.append(list(embedding))
+                return results
                 
-                # HF API might return an error dict instead of embeddings
-                if isinstance(result, dict) and "error" in result:
-                    logger.warning("HF API error (attempt %d): %s", attempt + 1, result["error"])
-                    if attempt < retries - 1:
-                        import time
-                        time.sleep(5)  # Wait before retry
-                        continue
-                    raise RuntimeError(f"HF API error: {result['error']}")
-                
-                return result
-        except httpx.TimeoutException:
-            logger.warning("HF API timeout (attempt %d/%d)", attempt + 1, retries)
-            if attempt < retries - 1:
-                import time
-                time.sleep(3)
-                continue
-            raise
         except Exception as e:
-            logger.error("HF API error (attempt %d): %s", attempt + 1, e)
+            error_msg = str(e)
+            logger.warning("HF API error (attempt %d/%d): %s", attempt + 1, retries, error_msg)
+            
             if attempt < retries - 1:
-                import time
-                time.sleep(3)
+                wait_time = 5 * (attempt + 1)  # Exponential backoff
+                logger.info("Retrying in %d seconds...", wait_time)
+                time.sleep(wait_time)
                 continue
-            raise
-    
-    raise RuntimeError("HF API failed after all retries")
+            raise RuntimeError(f"HF API failed after {retries} attempts: {error_msg}")
 
 
 def encode_text(text: str) -> list[float]:
