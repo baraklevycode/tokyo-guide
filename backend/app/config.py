@@ -19,16 +19,15 @@ class Settings(BaseSettings):
     # Embedding model name
     embedding_model_name: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
-    # Groq model name
-    groq_model_name: str = "openai/gpt-oss-20b"
+    # Groq model name (llama-3.3-70b: free, 128K context, great Hebrew support)
+    groq_model_name: str = "llama-3.3-70b-versatile"
 
     # RAG settings
     rag_match_threshold: float = 0.25
-    rag_match_count: int = 5
-    rag_max_completion_tokens: int = 8192
-    rag_temperature: float = 1.0
-    rag_top_p: float = 1.0
-    rag_reasoning_effort: str = "medium"
+    rag_match_count: int = 8
+    rag_max_completion_tokens: int = 4096
+    rag_temperature: float = 0.7
+    rag_top_p: float = 0.9
 
     model_config = {
         "env_file": ".env",

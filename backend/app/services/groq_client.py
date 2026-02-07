@@ -1,4 +1,4 @@
-"""Groq API client wrapper for LLM chat completions using openai/gpt-oss-20b."""
+"""Groq API client wrapper for LLM chat completions."""
 
 from __future__ import annotations
 
@@ -17,18 +17,19 @@ _client: Optional[Groq] = None
 # System prompt for the Tokyo travel guide assistant
 SYSTEM_PROMPT_TEMPLATE = """אתה מדריך טיולים מומחה לטוקיו, יפן. אתה עונה על שאלות בעברית בצורה ידידותית, מדויקת ומפורטת.
 
-השתמש במידע הבא כדי לענות על שאלות המשתמש:
+השתמש אך ורק במידע הבא כדי לענות על שאלות המשתמש:
 
 {context}
 
 הנחיות:
 1. ענה תמיד בעברית, אלא אם המשתמש שואל באנגלית.
 2. ציין שמות מקומות גם באנגלית (באותיות לטיניות) לצד העברית, לנוחות ניווט.
-3. תן תשובות ברורות, מדויקות ומועילות על בסיס המידע שקיבלת.
-4. אם המידע לא מופיע בהקשר שקיבלת, אמור זאת בכנות ונסה לתת עצה כללית.
-5. כשממליץ על מסעדות או מקומות, ציין גם את האזור/שכונה.
+3. תן תשובות ברורות, מדויקות ומועילות על בסיס המידע שקיבלת בלבד.
+4. אם המידע לא מופיע בהקשר שקיבלת, אמור זאת בכנות. אל תמציא מידע.
+5. כשממליץ על מסעדות או מקומות, ציין גם את האזור/שכונה אם המידע זמין.
 6. היה חם ומזמין, כמו חבר שמכיר את טוקיו היטב.
 7. אם המשתמש שואל על מחירים, ציין ביין יפני (¥) וגם הערכה בשקלים.
+8. שמור על תשובות תמציתיות וממוקדות. אל תחזור על אותו מידע.
 """
 
 
@@ -49,10 +50,7 @@ def generate_response(
     chat_history: list[dict[str, str]] | None = None,
 ) -> str:
     """
-    Generate a response using Groq's openai/gpt-oss-20b reasoning model.
-
-    The model streams reasoning tokens first (chain-of-thought), then content tokens.
-    We use non-streaming mode here since we return a JSON response, not a stream.
+    Generate a response using Groq LLM with RAG context.
 
     Args:
         context: Relevant content retrieved from the vector database.
@@ -79,11 +77,9 @@ def generate_response(
             model=settings.groq_model_name,
             messages=messages,
             temperature=settings.rag_temperature,
-            max_completion_tokens=settings.rag_max_completion_tokens,
+            max_tokens=settings.rag_max_completion_tokens,
             top_p=settings.rag_top_p,
-            reasoning_effort=settings.rag_reasoning_effort,
             stream=False,
-            stop=None,
         )
         answer = response.choices[0].message.content
         return answer or "מצטער, לא הצלחתי ליצור תשובה. נסה שוב."
@@ -112,14 +108,12 @@ def generate_suggested_questions(question: str, answer: str) -> list[str]:
                         "החזר רק את השאלות, כל אחת בשורה חדשה, ללא מספור."
                     ),
                 },
-                {"role": "user", "content": f"שאלה: {question}\n\nתשובה: {answer}"},
+                {"role": "user", "content": f"שאלה: {question}\n\nתשובה: {answer[:500]}"},
             ],
-            temperature=settings.rag_temperature,
-            max_completion_tokens=512,
-            top_p=settings.rag_top_p,
-            reasoning_effort=settings.rag_reasoning_effort,
+            temperature=0.7,
+            max_tokens=256,
+            top_p=0.9,
             stream=False,
-            stop=None,
         )
         raw = response.choices[0].message.content or ""
         suggestions = [line.strip() for line in raw.strip().split("\n") if line.strip()]
@@ -128,6 +122,6 @@ def generate_suggested_questions(question: str, answer: str) -> list[str]:
         logger.error("Failed to generate suggestions: %s", e)
         return [
             "מה כדאי לאכול בטוקיו?",
-            "איך להתניידד בתחבורה ציבורית?",
+            "איך להתנייד בתחבורה ציבורית?",
             "אילו שכונות מומלצות לביקור?",
         ]

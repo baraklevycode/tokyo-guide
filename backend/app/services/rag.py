@@ -48,14 +48,13 @@ async def answer_question(
         match_count=settings.rag_match_count,
     )
 
-    # 3. Build context from search results (limit content length to stay within token limits)
-    max_content_per_source = 800  # Characters per source to avoid exceeding Groq token limit
+    # 3. Build context from search results (128K context allows full content)
+    max_content_per_source = 2000  # Generous limit per source with 128K context window
     context_parts = []
     sources = []
     for result in search_results:
         title_heb = result.get("title_hebrew", "")
         content_heb = result.get("content_hebrew", "")
-        # Truncate long content to stay within API token limits
         if len(content_heb) > max_content_per_source:
             content_heb = content_heb[:max_content_per_source] + "..."
         context_parts.append(f"## {title_heb}\n{content_heb}")
