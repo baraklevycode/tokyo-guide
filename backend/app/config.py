@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # RAG settings
     rag_match_threshold: float = 0.25
-    rag_match_count: int = 8
+    rag_match_count: int = 5
     rag_max_completion_tokens: int = 8192
     rag_temperature: float = 1.0
     rag_top_p: float = 1.0
