@@ -12,8 +12,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Hugging Face Inference API settings
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Hugging Face Inference API settings (updated URL - router.huggingface.co)
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/pipeline/feature-extraction"
 HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
 
 # Local model instance (only used if HF_API_TOKEN not set)
