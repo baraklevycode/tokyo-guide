@@ -48,18 +48,47 @@ def get_model():
     return _model
 
 
-def _call_hf_api(texts: list[str]) -> list[list[float]]:
-    """Call Hugging Face Inference API for embeddings."""
+def _call_hf_api(texts: list[str], retries: int = 3) -> list[list[float]]:
+    """Call Hugging Face Inference API for embeddings with retry logic."""
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
     
-    with httpx.Client(timeout=60) as client:
-        response = client.post(
-            HF_API_URL,
-            headers=headers,
-            json={"inputs": texts, "options": {"wait_for_model": True}}
-        )
-        response.raise_for_status()
-        return response.json()
+    for attempt in range(retries):
+        try:
+            with httpx.Client(timeout=120) as client:
+                response = client.post(
+                    HF_API_URL,
+                    headers=headers,
+                    json={"inputs": texts, "options": {"wait_for_model": True}}
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # HF API might return an error dict instead of embeddings
+                if isinstance(result, dict) and "error" in result:
+                    logger.warning("HF API error (attempt %d): %s", attempt + 1, result["error"])
+                    if attempt < retries - 1:
+                        import time
+                        time.sleep(5)  # Wait before retry
+                        continue
+                    raise RuntimeError(f"HF API error: {result['error']}")
+                
+                return result
+        except httpx.TimeoutException:
+            logger.warning("HF API timeout (attempt %d/%d)", attempt + 1, retries)
+            if attempt < retries - 1:
+                import time
+                time.sleep(3)
+                continue
+            raise
+        except Exception as e:
+            logger.error("HF API error (attempt %d): %s", attempt + 1, e)
+            if attempt < retries - 1:
+                import time
+                time.sleep(3)
+                continue
+            raise
+    
+    raise RuntimeError("HF API failed after all retries")
 
 
 def encode_text(text: str) -> list[float]:

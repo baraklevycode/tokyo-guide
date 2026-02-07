@@ -31,4 +31,11 @@ async def chat(request: ChatRequest) -> ChatResponse:
         return response
     except Exception as e:
         logger.error("Chat endpoint error: %s", e, exc_info=True)
+        error_msg = str(e)
+        if "timeout" in error_msg.lower():
+            raise HTTPException(status_code=504, detail="השירות עמוס. נסה שוב בעוד רגע.")
+        elif "HF API" in error_msg or "embedding" in error_msg.lower():
+            raise HTTPException(status_code=503, detail="שירות ה-AI זמנית לא זמין. נסה שוב.")
+        elif "groq" in error_msg.lower():
+            raise HTTPException(status_code=503, detail="שירות השפה זמנית לא זמין. נסה שוב.")
         raise HTTPException(status_code=500, detail="שגיאה בעיבוד השאלה. נסה שוב.")
