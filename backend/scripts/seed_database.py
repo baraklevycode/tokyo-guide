@@ -81,6 +81,36 @@ def seed_blog_content(sections: list[ScrapedSection]) -> int:
     return inserted
 
 
+def _categorize_map_place(place: MapPlace) -> str:
+    """Determine category from map layer name and place info."""
+    layer = place.layer_name.lower() if place.layer_name else ""
+    name = place.name.lower() if place.name else ""
+    desc = place.description.lower() if place.description else ""
+    combined = f"{layer} {name} {desc}"
+    
+    # Check layer name patterns
+    if any(kw in layer for kw in ["food", "eat", "restaurant", "ramen", "sushi", "אוכל", "מסעד"]):
+        return "restaurants"
+    if any(kw in layer for kw in ["cafe", "coffee", "קפה"]):
+        return "restaurants"
+    if any(kw in layer for kw in ["bar", "drink", "בר", "שתיה"]):
+        return "restaurants"
+    if any(kw in layer for kw in ["shop", "buy", "store", "קניות", "חנות"]):
+        return "shopping"
+    if any(kw in layer for kw in ["hotel", "sleep", "hostel", "מלון", "לינה"]):
+        return "hotels"
+    if any(kw in layer for kw in ["temple", "shrine", "park", "museum", "מקדש", "פארק"]):
+        return "attractions"
+    
+    # Check content keywords if layer didn't match
+    if any(kw in combined for kw in ["ramen", "sushi", "restaurant", "izakaya", "ראמן", "סושי"]):
+        return "restaurants"
+    if any(kw in combined for kw in ["temple", "shrine", "park", "museum"]):
+        return "attractions"
+    
+    return "attractions"  # Default fallback
+
+
 def seed_map_places(places: list[MapPlace]) -> int:
     """
     Generate embeddings and insert map places that don't already exist in the database.
@@ -93,9 +123,14 @@ def seed_map_places(places: list[MapPlace]) -> int:
 
     client = get_supabase_client()
 
-    # Filter out places with no meaningful description
-    meaningful = [p for p in places if p.name and len(p.name) > 2]
+    # Filter out places with no meaningful name and description
+    meaningful = [p for p in places if p.name and len(p.name) > 2 and (p.description and len(p.description) > 10)]
     if not meaningful:
+        # Fallback: allow places with just names if descriptions are empty
+        meaningful = [p for p in places if p.name and len(p.name) > 3]
+    
+    if not meaningful:
+        logger.warning("No meaningful map places found")
         return 0
 
     logger.info("Generating embeddings for %d map places...", len(meaningful))
@@ -104,13 +139,14 @@ def seed_map_places(places: list[MapPlace]) -> int:
 
     rows = []
     for place, embedding in zip(meaningful, embeddings):
+        category = _categorize_map_place(place)
         rows.append(
             {
                 "title": place.name,
                 "title_hebrew": place.name,  # Map names may be in English
                 "content": place.description or place.name,
                 "content_hebrew": place.description or place.name,
-                "category": "attractions",  # Default for map places
+                "category": category,  # Use proper categorization
                 "tags": place.tags or [],
                 "location_name": place.name,
                 "latitude": place.latitude,

@@ -13,12 +13,6 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
-    # Telegram Bot (create via @BotFather)
-    telegram_bot_token: str = ""
-
-    # Backend URL for Telegram webhook
-    webhook_url: str = ""
-
     # Frontend URL for CORS
     frontend_url: str = "http://localhost:3000"
 

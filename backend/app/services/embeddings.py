@@ -11,13 +11,12 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Hugging Face API settings
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
 HF_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-# Local model instance (only used if HF_API_TOKEN not set)
+# Module state (initialized in load_model)
 _model = None
 _hf_client = None
-_use_api = bool(HF_API_TOKEN)
+_use_api = False
 
 
 def load_model():
@@ -28,11 +27,15 @@ def load_model():
     """
     global _model, _hf_client, _use_api
     
-    if HF_API_TOKEN:
+    # Check token at runtime, not module load time
+    hf_token = os.getenv("HF_API_TOKEN", "")
+    
+    if hf_token:
         logger.info("Using Hugging Face Inference API for embeddings (low memory mode)")
         from huggingface_hub import InferenceClient
-        _hf_client = InferenceClient(provider="hf-inference", api_key=HF_API_TOKEN)
+        _hf_client = InferenceClient(provider="hf-inference", api_key=hf_token)
         _use_api = True
+        logger.info("HF InferenceClient initialized successfully")
         return None
     
     # Local mode - load sentence-transformers
@@ -58,13 +61,15 @@ def _call_hf_api(texts: list[str], retries: int = 3) -> list[list[float]]:
             # Use the HuggingFace Hub client
             if len(texts) == 1:
                 result = _hf_client.feature_extraction(texts[0], model=HF_MODEL)
-                return [list(result)]
+                # Convert numpy float32 to Python float for JSON serialization
+                return [[float(x) for x in result]]
             else:
                 # Process multiple texts
                 results = []
                 for text in texts:
                     embedding = _hf_client.feature_extraction(text, model=HF_MODEL)
-                    results.append(list(embedding))
+                    # Convert numpy float32 to Python float
+                    results.append([float(x) for x in embedding])
                 return results
                 
         except Exception as e:

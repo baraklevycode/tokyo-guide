@@ -31,8 +31,8 @@ async def answer_question(
     Args:
         question: The user's question in Hebrew or English.
         session_id: Optional existing session ID for conversation continuity.
-        platform: 'web' or 'telegram'.
-        user_id: User identifier (Telegram user ID or 'anonymous' for web).
+        platform: Client platform identifier (default 'web').
+        user_id: User identifier (default 'anonymous').
 
     Returns:
         ChatResponse with answer, sources, session_id, and suggested questions.

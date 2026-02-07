@@ -9,9 +9,6 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import Request
-from telegram import Update
-
 from app.config import settings
 from app.models import HealthResponse
 from app.routers import chat, search, sections
@@ -26,38 +23,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: load the embedding model and set up Telegram webhook on startup."""
+    """Application lifespan: load the embedding model on startup."""
     logger.info("Starting Tokyo Guide Backend...")
     load_model()
-
-    # Set up Telegram bot webhook if token is configured
-    if settings.telegram_bot_token:
-        try:
-            from app.telegram.bot import create_bot_application, setup_webhook
-
-            bot_app = create_bot_application()
-            await bot_app.initialize()
-            await setup_webhook(bot_app)
-            # Store bot app in FastAPI state for the webhook endpoint
-            application.state.bot_app = bot_app
-            logger.info("Telegram bot initialized")
-        except Exception as e:
-            logger.warning("Telegram bot setup failed (non-critical): %s", e)
-    else:
-        logger.info("TELEGRAM_BOT_TOKEN not set, Telegram bot disabled")
-
     logger.info("Application ready.")
     yield
-
-    # Shutdown
-    if hasattr(application.state, "bot_app"):
-        await application.state.bot_app.shutdown()
     logger.info("Shutting down Tokyo Guide Backend.")
 
 
 app = FastAPI(
     title="Tokyo Travel Guide API",
-    description="RAG-powered Tokyo travel guide with chat, content browsing, and Telegram bot.",
+    description="RAG-powered Tokyo travel guide with chat and content browsing.",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -101,21 +77,3 @@ async def root() -> dict[str, str]:
         "version": "0.1.0",
         "docs": "/docs",
     }
-
-
-# ── Telegram webhook ────────────────────────────────────────────────────────
-@app.post("/telegram/webhook")
-async def telegram_webhook(request: Request) -> dict[str, str]:
-    """Receive Telegram updates via webhook."""
-    if not hasattr(request.app.state, "bot_app"):
-        return {"status": "bot not initialized"}
-
-    bot_app: "Application" = request.app.state.bot_app
-    try:
-        data = await request.json()
-        update = Update.de_json(data, bot_app.bot)
-        await bot_app.process_update(update)
-    except Exception as e:
-        logger.error("Error processing Telegram update: %s", e)
-
-    return {"status": "ok"}
